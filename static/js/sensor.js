@@ -63,6 +63,7 @@ class Sensor {
     }
 
     draw(ctx) {
+        if (this.rays.length === 0) return;
         for (let i = 0; i < this.rayCount; i++) {
             let end = this.rays[i][1];
             if (this.readings[i]) {
