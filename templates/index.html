@@ -114,30 +114,38 @@
         <button id="startBtn" class="btn-start">START ENGINES</button>
     </div>
 
+    // templates/index.html - Script section
     <script>
-        // CRÍTICO: Definimos variables en el objeto 'window' para que main.js pueda leerlas
         window.config = {
             trackName: "{{ track }}",
             popSize: parseInt("{{ population }}")
         };
 
-        window.simulationRunning = false;
+        // Leemos si la simulación ya estaba corriendo antes del reload
+        window.simulationRunning = localStorage.getItem('simulationRunning') === 'true';
 
         const startBtn = document.getElementById('startBtn');
         const statusDisplay = document.getElementById('status');
 
-        startBtn.onclick = () => {
-            window.simulationRunning = true;
+        // Función para activar visualmente el modo "Running"
+        function activateSimulation() {
             statusDisplay.innerText = "RUNNING";
             statusDisplay.style.color = "#00ff41";
-            
             startBtn.disabled = true;
             startBtn.innerText = "SYSTEM ACTIVE";
-            
-            console.log(`Starting simulation on ${window.config.trackName} with ${window.config.popSize} agents.`);
+        }
+
+        if (window.simulationRunning) {
+            activateSimulation();
+        }
+
+        startBtn.onclick = () => {
+            window.simulationRunning = true;
+            localStorage.setItem('simulationRunning', 'true'); // Guardamos el estado
+            activateSimulation();
         };
     </script>
-    
+
     <script src="{{ url_for('static', filename='js/tracks_data.js') }}"></script>
     <script src="{{ url_for('static', filename='js/network.js') }}"></script>
     <script src="{{ url_for('static', filename='js/sensor.js') }}"></script>
