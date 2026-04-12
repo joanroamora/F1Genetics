@@ -21,6 +21,15 @@ canvas.addEventListener('mousedown', (event) => {
     console.log(`Current Track (${trackName}):`, JSON.stringify(trackPoints));
 });
 
+// Create the population of cars
+const cars = [];
+if (trackPoints.length > 0) {
+    for (let i = 0; i < populationSize; i++) {
+        // We start all cars at the first point of the track
+        cars.push(new Car(trackPoints[0].x, trackPoints[0].y, 10, 20));
+    }
+}
+
 function drawRoad() {
     if (trackPoints.length < 2) return;
 
@@ -47,14 +56,22 @@ function animate() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawRoad();
 
-    // Visual feedback for the current state
-    if (!window.simulationRunning) {
+    if (window.simulationRunning) {
+        cars.forEach(car => {
+            car.update();
+            car.draw(ctx);
+        });
+    } else {
         ctx.fillStyle = "white";
         ctx.font = "14px Arial";
+        // Mensaje actualizado para la rama monaco
         const msg = trackPoints.length > 0 
-            ? `PRE-LOADED: ${trackName.toUpperCase()} GP - Click to edit` 
+            ? `BRANCH: MONACO - ${trackName.toUpperCase()} GP - Ready to Race` 
             : `NEW TRACK: ${trackName.toUpperCase()} - Click to trace`;
         ctx.fillText(msg, 10, 20);
+        
+        // Dibujamos los carros estáticos en la línea de salida
+        cars.forEach(car => car.draw(ctx));
     }
 
     requestAnimationFrame(animate);
