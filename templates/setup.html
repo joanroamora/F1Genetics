@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Genetics - Setup</title>
+    <style>
+        body { 
+            background: #121212; 
+            color: white; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+        }
+        .setup-card { 
+            background: #1e1e1e; 
+            padding: 40px; 
+            border-radius: 15px; 
+            border: 1px solid #333; 
+            width: 400px; 
+            text-align: center; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        h1 { letter-spacing: 2px; margin-bottom: 5px; }
+        p { color: #888; margin-bottom: 30px; text-transform: uppercase; font-size: 0.9em; }
+        label { display: block; text-align: left; font-size: 0.9em; color: #bbb; margin-bottom: 5px; }
+        select, input { 
+            width: 100%; 
+            padding: 12px; 
+            margin-bottom: 25px; 
+            background: #252525; 
+            border: 1px solid #444; 
+            color: white; 
+            border-radius: 5px; 
+            box-sizing: border-box;
+        }
+        .btn-start { 
+            background: #e10600; 
+            color: white; 
+            border: none; 
+            padding: 15px 30px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            border-radius: 5px; 
+            width: 100%; 
+            font-size: 1.1em; 
+            text-transform: uppercase;
+            transition: background 0.3s;
+        }
+        .btn-start:hover { background: #ff1e1e; }
+    </style>
+</head>
+<body>
+    <div class="setup-card">
+        <h1>F1 GENETICS</h1>
+        <p>Simulation Configuration</p>
+        
+        <form action="/simulation" method="GET">
+            <label>Select Track Layout:</label>
+            <select name="track">
+                <option value="monaco">Monaco GP (Hard)</option>
+                <option value="monza">Monza (High Speed)</option>
+                <option value="spa">Spa-Francorchamps (Technical)</option>
+            </select>
+
+            <label>Agent Population Count:</label>
+            <input type="number" name="population" value="100" min="10" max="500">
+
+            <button type="submit" class="btn-start">Establish Connection</button>
+        </form>
+    </div>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Genetics - Live Simulation</title>
+    <style>
+        /* Base Styling */
+        body { 
+            background: #121212; 
+            color: #e0e0e0; 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            margin: 0; 
+            padding: 20px; 
+        }
+
+        h1 { 
+            color: #f1f1f1; 
+            margin-bottom: 20px; 
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Stats Dashboard */
+        #stats-container { 
+            background: #1e1e1e; 
+            padding: 20px; 
+            border-radius: 10px; 
+            border: 1px solid #333; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5); 
+            margin-bottom: 20px; 
+            min-width: 600px; 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 15px; 
+        }
+
+        .stat-item { font-size: 1.1em; border-bottom: 1px solid #2a2a2a; padding-bottom: 5px; }
+        .label { color: #888; font-size: 0.9em; text-transform: uppercase; }
+        .value { 
+            color: #00ff41; 
+            font-weight: bold; 
+            font-family: 'Courier New', monospace; 
+            float: right;
+        }
+
+        /* Simulation Canvas */
+        canvas { 
+            background: #252525; 
+            border: 3px solid #333; 
+            border-radius: 5px; 
+            box-shadow: 0 0 30px rgba(0,0,0,0.4); 
+        }
+
+        /* Racing Button */
+        .controls { margin-top: 25px; }
+        
+        .btn-start {
+            background: #e10600; /* F1 Red */
+            color: white;
+            border: none;
+            padding: 18px 50px;
+            font-size: 1.2em;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 0 #8a0400;
+        }
+
+        .btn-start:hover { background: #ff1e1e; transform: translateY(-2px); box-shadow: 0 6px 0 #8a0400; }
+        .btn-start:active { transform: translateY(2px); box-shadow: 0 0 0 #8a0400; }
+        .btn-start:disabled { background: #444; box-shadow: none; cursor: not-allowed; opacity: 0.6; }
+    </style>
+</head>
+<body>
+    <h1>LIVE SIMULATION</h1>
+    
+    <div id="stats-container">
+        <div class="stat-item">
+            <span class="label">Track:</span> 
+            <span class="value" style="color: #ff3e3e;">{{ track.upper() }} GP</span>
+        </div>
+        <div class="stat-item">
+            <span class="label">Population:</span> 
+            <span class="value">{{ population }} AGENTS</span>
+        </div>
+        <div class="stat-item">
+            <span class="label">Generation:</span> 
+            <span id="gen-count" class="value">1</span>
+        </div>
+        <div class="stat-item">
+            <span class="label">Status:</span> 
+            <span id="status" class="value" style="color: #ffcc00;">WAITING...</span>
+        </div>
+        <div class="stat-item">
+            <span class="label">Best Fitness:</span> 
+            <span id="best-fitness" class="value">0.00</span>
+        </div>
+        <div class="stat-item">
+            <span class="label">Alive Agents:</span> 
+            <span id="alive-count" class="value">{{ population }}</span>
+        </div>
+    </div>
+
+    <canvas id="simulationCanvas" width="800" height="600"></canvas>
+
+    <div class="controls">
+        <button id="startBtn" class="btn-start">START ENGINES</button>
+    </div>
+
+    <script>
+        const config = {
+            trackName: "{{ track }}",
+            popSize: parseInt("{{ population }}")
+        };
+
+        const startBtn = document.getElementById('startBtn');
+        const statusDisplay = document.getElementById('status');
+        let simulationRunning = false;
+
+        startBtn.onclick = () => {
+            simulationRunning = true;
+            statusDisplay.innerText = "RUNNING";
+            statusDisplay.style.color = "#00ff41";
+            
+            startBtn.disabled = true;
+            startBtn.innerText = "SYSTEM ACTIVE";
+            
+            console.log(`Starting simulation on ${config.trackName} with ${config.popSize} agents.`);
+            // Trigger main logic start here
+        };
+    </script>
+    
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
