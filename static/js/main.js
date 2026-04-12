@@ -9,17 +9,16 @@ const safeData = typeof TRACKS_DATA !== 'undefined' ? TRACKS_DATA : {};
 let trackPoints = safeData[trackName] || [];
 const laneWidth = 45;
 
-// --- EVOLUTION VARIABLES ---
 const roadBorders = [];
 let bestCar = null;
 let currentGeneration = parseInt(localStorage.getItem('genCount')) || 1;
 let mutationAmount = 0.2; 
 let frameCounter = 0; 
-const MAX_FRAMES = 800; // Tiempo límite por generación para evitar parálisis
+const MAX_FRAMES = 800; // Limite de tiempo
 
 document.getElementById('gen-count').innerText = currentGeneration;
 
-// 1. Cálculo de bordes de la pista para colisiones
+// Calcular Bordes
 if (trackPoints.length > 1) {
     const halfWidth = laneWidth / 2;
     for (let i = 0; i < trackPoints.length - 1; i++) {
@@ -33,7 +32,7 @@ if (trackPoints.length > 1) {
     }
 }
 
-// 2. Creación de la población con ángulo de salida corregido
+// Crear población con ángulo inicial
 const cars = [];
 if (trackPoints.length > 1) {
     const dx = trackPoints[1].x - trackPoints[0].x;
@@ -47,7 +46,7 @@ if (trackPoints.length > 1) {
     }
 }
 
-// 3. Carga del cerebro del ganador y mutación
+// Cargar Cerebro
 bestCar = cars[0];
 const savedBrain = localStorage.getItem('bestBrain');
 if (savedBrain) {
@@ -76,53 +75,61 @@ function animate() {
 
     if (window.simulationRunning) {
         frameCounter++;
-        const aliveCars = cars.filter(car => !car.damaged);
         
+        // --- NUEVO: SISTEMA DE FITNESS POR CHECKPOINTS ---
         cars.forEach(car => {
             car.update(roadBorders);
 
-            // --- SEGURIDAD: Muerte por Off-Track ---
-            // Si la partícula se aleja demasiado del trazado, se marca como dañada
+            // Muerte por salir de la pista
             const isNearTrack = trackPoints.some(p => 
                 Math.hypot(car.x - p.x, car.y - p.y) < laneWidth * 1.5
             );
             if (!isNearTrack) car.damaged = true;
 
-            car.draw(ctx, car === bestCar); 
+            // Calculamos en qué punto de la pista va (Fitness)
+            let closestIndex = 0;
+            let minDist = Infinity;
+            for (let i = 0; i < trackPoints.length; i++) {
+                const d = Math.hypot(car.x - trackPoints[i].x, car.y - trackPoints[i].y);
+                if (d < minDist) {
+                    minDist = d;
+                    closestIndex = i;
+                }
+            }
+            car.fitness = closestIndex; // El puntaje es el índice del trazado!
         });
 
-        if (aliveCars.length > 0) {
-            // Fitness: Premiamos el avance basándonos en la distancia al inicio
-            bestCar = aliveCars.reduce((prev, curr) => {
-                const dPrev = Math.hypot(prev.x - trackPoints[0].x, prev.y - trackPoints[0].y);
-                const dCurr = Math.hypot(curr.x - trackPoints[0].x, curr.y - trackPoints[0].y);
-                return dPrev > dCurr ? prev : curr;
-            });
-            
-            const currentDist = Math.hypot(bestCar.x - trackPoints[0].x, bestCar.y - trackPoints[0].y);
-            document.getElementById('best-fitness').innerText = currentDist.toFixed(2);
-            document.getElementById('alive-count').innerText = aliveCars.length;
-        }
+        // Buscamos al mejor entre TODOS (vivos o muertos) para evitar la paradoja del perezoso
+        bestCar = cars.reduce((prev, curr) => prev.fitness > curr.fitness ? prev : curr);
+        
+        const aliveCars = cars.filter(car => !car.damaged);
 
-        // --- REINICIO AUTOMÁTICO ---
+        // Actualizamos UI
+        document.getElementById('best-fitness').innerText = `CHECKPOINT: ${bestCar.fitness}`;
+        document.getElementById('alive-count').innerText = aliveCars.length;
+
+        // Dibujamos
+        cars.forEach(car => car.draw(ctx, car === bestCar));
+
+        // REINICIO
         if (aliveCars.length === 0 || frameCounter > MAX_FRAMES) {
             localStorage.setItem('bestBrain', JSON.stringify(bestCar.brain));
             localStorage.setItem('genCount', currentGeneration + 1);
-            // Avisamos al sistema que debe arrancar solo al recargar
             localStorage.setItem('simulationRunning', 'true'); 
             location.reload();
         }
 
     } else {
         ctx.fillStyle = "white"; ctx.font = "14px Arial";
-        ctx.fillText(`BRANCH: MONACO - GEN: ${currentGeneration} - Selecting Best Brain`, 10, 20);
+        ctx.fillText(`BRANCH: MONACO - GEN: ${currentGeneration} - Waiting for Engines...`, 10, 20);
         cars.forEach(car => car.draw(ctx, car === cars[0]));
     }
     requestAnimationFrame(animate);
 }
 
 window.resetEvolution = () => {
-    localStorage.clear();
-    location.reload();
+    localStorage.clear(); // Borra cerebro, generación y estado de simulación
+    console.log("🧬 Evolución reseteada. Reiniciando desde Gen 1...");
+    location.reload();    // Recarga la página
 }
 animate();
