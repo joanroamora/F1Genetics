@@ -108,35 +108,37 @@
         </div>
     </div>
 
-    <canvas id="simulationCanvas" width="800" height="600"></canvas>
+    <canvas id="simulationCanvas" width="1000" height="700"></canvas>
 
     <div class="controls">
         <button id="startBtn" class="btn-start">START ENGINES</button>
     </div>
 
     <script>
-        const config = {
+        // CRÍTICO: Definimos variables en el objeto 'window' para que main.js pueda leerlas
+        window.config = {
             trackName: "{{ track }}",
             popSize: parseInt("{{ population }}")
         };
 
+        window.simulationRunning = false;
+
         const startBtn = document.getElementById('startBtn');
         const statusDisplay = document.getElementById('status');
-        let simulationRunning = false;
 
         startBtn.onclick = () => {
-            simulationRunning = true;
+            window.simulationRunning = true;
             statusDisplay.innerText = "RUNNING";
             statusDisplay.style.color = "#00ff41";
             
             startBtn.disabled = true;
             startBtn.innerText = "SYSTEM ACTIVE";
             
-            console.log(`Starting simulation on ${config.trackName} with ${config.popSize} agents.`);
-            // Trigger main logic start here
+            console.log(`Starting simulation on ${window.config.trackName} with ${window.config.popSize} agents.`);
         };
     </script>
     
+    <script src="{{ url_for('static', filename='js/tracks_data.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
