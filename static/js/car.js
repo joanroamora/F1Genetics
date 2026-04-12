@@ -5,6 +5,7 @@ class Car {
         this.y = y;
         this.width = width;
         this.height = height;
+        this.sensor = new Sensor(this);
 
         this.speed = 0;
         this.acceleration = 0.2;
@@ -22,9 +23,10 @@ class Car {
         };
     }
 
-    update() {
+    update(roadBorders) { // Ahora recibe los bordes de la pista
         if (!this.damaged) {
             this.#move();
+            this.sensor.update(roadBorders);
         }
     }
 
@@ -68,6 +70,7 @@ class Car {
     }
 
     draw(ctx) {
+        this.sensor.draw(ctx);
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.rotate(-this.angle);

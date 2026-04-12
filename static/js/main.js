@@ -2,30 +2,43 @@
 const canvas = document.getElementById('simulationCanvas');
 const ctx = canvas.getContext('2d');
 
-// Captured from global window.config defined in HTML
 const trackName = window.config.trackName;
 const populationSize = window.config.popSize;
 
-// Track initialization with safety check
 const safeData = typeof TRACKS_DATA !== 'undefined' ? TRACKS_DATA : {};
 let trackPoints = safeData[trackName] || [];
 const laneWidth = 45;
 
-// Click listener for developer mode / tracing new tracks
-canvas.addEventListener('mousedown', (event) => {
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    
-    trackPoints.push({x, y});
-    console.log(`Current Track (${trackName}):`, JSON.stringify(trackPoints));
-});
+// --- NUEVA LÓGICA: Cálculo de Bordes para el Sensor ---
+const roadBorders = [];
+if (trackPoints.length > 1) {
+    const halfWidth = laneWidth / 2;
+    for (let i = 0; i < trackPoints.length - 1; i++) {
+        const p1 = trackPoints[i];
+        const p2 = trackPoints[i+1];
+        
+        // Calculamos el ángulo del segmento para sacar las paredes paralelas
+        const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+        const nx = Math.sin(angle) * halfWidth;
+        const ny = Math.cos(angle) * halfWidth;
+
+        // Pared Izquierda
+        roadBorders.push([
+            {x: p1.x + nx, y: p1.y - ny},
+            {x: p2.x + nx, y: p2.y - ny}
+        ]);
+        // Pared Derecha
+        roadBorders.push([
+            {x: p1.x - nx, y: p1.y + ny},
+            {x: p2.x - nx, y: p2.y + ny}
+        ]);
+    }
+}
 
 // Create the population of cars
 const cars = [];
 if (trackPoints.length > 0) {
     for (let i = 0; i < populationSize; i++) {
-        // We start all cars at the first point of the track
         cars.push(new Car(trackPoints[0].x, trackPoints[0].y, 10, 20));
     }
 }
@@ -33,7 +46,7 @@ if (trackPoints.length > 0) {
 function drawRoad() {
     if (trackPoints.length < 2) return;
 
-    // 1. Asphalt Layer
+    // 1. Dibujar el Asfalto
     ctx.beginPath();
     ctx.strokeStyle = "#333"; 
     ctx.lineWidth = laneWidth;
@@ -46,7 +59,7 @@ function drawRoad() {
     }
     ctx.stroke();
 
-    // 2. White Boundaries
+    // 2. Dibujar las Paredes (Bordes Blancos)
     ctx.strokeStyle = "#FFF";
     ctx.lineWidth = 2;
     ctx.stroke();
@@ -54,23 +67,19 @@ function drawRoad() {
 
 function animate() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
     drawRoad();
 
     if (window.simulationRunning) {
         cars.forEach(car => {
-            car.update();
-            car.draw(ctx);
+            // CRÍTICO: Ahora sí le pasamos los roadBorders al carro
+            car.update(roadBorders); 
+            car.draw(ctx); 
         });
     } else {
         ctx.fillStyle = "white";
         ctx.font = "14px Arial";
-        // Mensaje actualizado para la rama monaco
-        const msg = trackPoints.length > 0 
-            ? `BRANCH: MONACO - ${trackName.toUpperCase()} GP - Ready to Race` 
-            : `NEW TRACK: ${trackName.toUpperCase()} - Click to trace`;
-        ctx.fillText(msg, 10, 20);
-        
-        // Dibujamos los carros estáticos en la línea de salida
+        ctx.fillText(`BRANCH: MONACO - Ready to Race`, 10, 20);
         cars.forEach(car => car.draw(ctx));
     }
 
