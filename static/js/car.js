@@ -5,6 +5,7 @@ class Car {
         this.y = y;
         this.width = width;
         this.height = height;
+        this.brain = new NeuralNetwork([this.sensor.rayCount, 6, 4]); // 5 inputs, 6 hidden, 4 outputs
         
         // Movimos estas variables arriba para que el sensor las encuentre
         this.speed = 0;
@@ -25,11 +26,57 @@ class Car {
         };
     }
 
-    update(roadBorders) { // Ahora recibe los bordes de la pista
-        if (!this.damaged) {
-            this.#move();
-            this.sensor.update(roadBorders);
+    update(roadBorders) {
+    if (!this.damaged) {
+        this.#move();
+        this.polygon = this.#createPolygon(); // Para detectar choques
+        this.damaged = this.#assessDamage(roadBorders);
+        this.sensor.update(roadBorders);
+        
+        // El cerebro toma las lecturas (0 si está lejos, 1-offset si está cerca)
+        const offsets = this.sensor.readings.map(
+            s => s == null ? 0 : 1 - s.offset
+        );
+        const outputs = NeuralNetwork.feedForward(offsets, this.brain);
+
+        // Mapeamos las salidas de la red a los controles
+        this.controls.forward = outputs[0];
+        this.controls.left = outputs[1];
+        this.controls.right = outputs[2];
+        this.controls.reverse = outputs[3];
+    }
+    }
+    
+    #assessDamage(roadBorders) {
+    for (let i = 0; i < roadBorders.length; i++) {
+        if (polysIntersect(this.polygon, roadBorders[i])) {
+            return true;
         }
+    }
+    return false;
+    }
+
+    #createPolygon() {
+    const points = [];
+    const rad = Math.hypot(this.width, this.height) / 2;
+    const alpha = Math.atan2(this.width, this.height);
+    points.push({
+        x: this.x - Math.sin(this.angle - alpha) * rad,
+        y: this.y - Math.cos(this.angle - alpha) * rad
+    });
+    points.push({
+        x: this.x - Math.sin(this.angle + alpha) * rad,
+        y: this.y - Math.cos(this.angle + alpha) * rad
+    });
+    points.push({
+        x: this.x - Math.sin(Math.PI + this.angle - alpha) * rad,
+        y: this.y - Math.cos(Math.PI + this.angle - alpha) * rad
+    });
+    points.push({
+        x: this.x - Math.sin(Math.PI + this.angle + alpha) * rad,
+        y: this.y - Math.cos(Math.PI + this.angle + alpha) * rad
+    });
+    return points;
     }
 
     #move() {
