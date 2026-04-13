@@ -12,7 +12,7 @@ const laneWidth = 45;
 const roadBorders = [];
 let bestCar = null;
 let currentGeneration = parseInt(localStorage.getItem('genCount')) || 1;
-let mutationAmount = 0.2; 
+let mutationAmount = 0.7; 
 let frameCounter = 0; 
 const MAX_FRAMES = 800; // Máximo de tiempo por iteración
 

@@ -14,8 +14,12 @@ class Car {
         this.angle = 0;
         this.damaged = false;
         
+        // --- NUEVO: SISTEMA ANTIPEREZA ---
+        this.idleTime = 0;       // Cronómetro de inactividad
+        this.maxIdleTime = 60;   // 60 fotogramas = 1 segundo de tolerancia antes de morir
+
         this.acceleration = 0.2;
-        this.maxSpeed = 3;
+        this.maxSpeed = 2;
         this.friction = 0.05;
 
         this.controls = {
@@ -24,23 +28,40 @@ class Car {
             right: false,
             reverse: false
         };
-        this.polygon = []; // For collision detection
+        this.polygon = []; // Para detectar colisiones
     }
 
     update(roadBorders) {
         if (!this.damaged) {
             this.#move();
-            // 1. Detect Damage
+
+            // --- NUEVO: LÓGICA DE MUERTE POR INACTIVIDAD ---
+            // Si la velocidad es ridículamente baja, sumamos tiempo al cronómetro
+            if (Math.abs(this.speed) < 0.1) {
+                this.idleTime++;
+            } else {
+                this.idleTime = 0; // Si se mueve rápido, reseteamos el cronómetro
+            }
+
+            // Si el carro lleva más de 1 segundo quieto, le apagamos el motor
+            if (this.idleTime >= this.maxIdleTime) {
+                this.damaged = true;
+            }
+
+            // 1. Detectar Colisión contra paredes
             this.polygon = this.#createPolygon();
-            this.damaged = this.#assessDamage(roadBorders);
+            // Solo evaluamos el choque si no ha muerto por pereza primero
+            if (!this.damaged) {
+                this.damaged = this.#assessDamage(roadBorders);
+            }
             
-            // 2. Feed Brain (Input)
+            // 2. Alimentar al Cerebro (Inputs)
             this.sensor.update(roadBorders);
             const offsets = this.sensor.readings.map(
                 s => s == null ? 0 : 1 - s.offset
             );
             
-            // 3. Brain Decides (Output)
+            // 3. El Cerebro Decide (Outputs)
             const outputs = NeuralNetwork.feedForward(offsets, this.brain);
             this.controls.forward = outputs[0];
             this.controls.left = outputs[1];
@@ -51,7 +72,6 @@ class Car {
 
     #assessDamage(roadBorders) {
         for (let i = 0; i < roadBorders.length; i++) {
-            // polysIntersect function is in sensor.js (from previous step)
             if (polysIntersect(this.polygon, roadBorders[i])) {
                 return true;
             }
@@ -63,65 +83,34 @@ class Car {
         const points = [];
         const rad = Math.hypot(this.width, this.height) / 2;
         const alpha = Math.atan2(this.width, this.height);
-        points.push({
-            x: this.x - Math.sin(this.angle - alpha) * rad,
-            y: this.y - Math.cos(this.angle - alpha) * rad
-        });
-        points.push({
-            x: this.x - Math.sin(this.angle + alpha) * rad,
-            y: this.y - Math.cos(this.angle + alpha) * rad
-        });
-        points.push({
-            x: this.x - Math.sin(Math.PI + this.angle - alpha) * rad,
-            y: this.y - Math.cos(Math.PI + this.angle - alpha) * rad
-        });
-        points.push({
-            x: this.x - Math.sin(Math.PI + this.angle + alpha) * rad,
-            y: this.y - Math.cos(Math.PI + this.angle + alpha) * rad
-        });
+        points.push({ x: this.x - Math.sin(this.angle - alpha) * rad, y: this.y - Math.cos(this.angle - alpha) * rad });
+        points.push({ x: this.x - Math.sin(this.angle + alpha) * rad, y: this.y - Math.cos(this.angle + alpha) * rad });
+        points.push({ x: this.x - Math.sin(Math.PI + this.angle - alpha) * rad, y: this.y - Math.cos(Math.PI + this.angle - alpha) * rad });
+        points.push({ x: this.x - Math.sin(Math.PI + this.angle + alpha) * rad, y: this.y - Math.cos(Math.PI + this.angle + alpha) * rad });
         return points;
     }
 
     #move() {
-        if (this.controls.forward) {
-            this.speed += this.acceleration;
-        }
-        if (this.controls.reverse) {
-            this.speed -= this.acceleration;
-        }
+        if (this.controls.forward) { this.speed += this.acceleration; }
+        if (this.controls.reverse) { this.speed -= this.acceleration; }
 
-        if (this.speed > this.maxSpeed) {
-            this.speed = this.maxSpeed;
-        }
-        if (this.speed < -this.maxSpeed / 2) {
-            this.speed = -this.maxSpeed / 2;
-        }
+        if (this.speed > this.maxSpeed) { this.speed = this.maxSpeed; }
+        if (this.speed < -this.maxSpeed / 2) { this.speed = -this.maxSpeed / 2; }
 
-        if (this.speed > 0) {
-            this.speed -= this.friction;
-        }
-        if (this.speed < 0) {
-            this.speed += this.friction;
-        }
-        if (Math.abs(this.speed) < this.friction) {
-            this.speed = 0;
-        }
+        if (this.speed > 0) { this.speed -= this.friction; }
+        if (this.speed < 0) { this.speed += this.friction; }
+        if (Math.abs(this.speed) < this.friction) { this.speed = 0; }
 
         if (this.speed !== 0) {
             const flip = this.speed > 0 ? 1 : -1;
-            if (this.controls.left) {
-                this.angle += 0.03 * flip;
-            }
-            if (this.controls.right) {
-                this.angle -= 0.03 * flip;
-            }
+            if (this.controls.left) { this.angle += 0.03 * flip; }
+            if (this.controls.right) { this.angle -= 0.03 * flip; }
         }
 
         this.x -= Math.sin(this.angle) * this.speed;
         this.y -= Math.cos(this.angle) * this.speed;
     }
 
-    // MODIFIED: Accept a boolean to decide whether to draw the sensors
     draw(ctx, drawSensor) {
         if (this.sensor && drawSensor) {
             this.sensor.draw(ctx);
