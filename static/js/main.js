@@ -7,18 +7,21 @@ const populationSize = window.config.popSize;
 
 const safeData = typeof TRACKS_DATA !== 'undefined' ? TRACKS_DATA : {};
 let trackPoints = safeData[trackName] || [];
-const laneWidth = 45;
+
+// --- AJUSTE: Pista un poco más ancha para permitir maniobras en Mónaco ---
+const laneWidth = 60; 
 
 const roadBorders = [];
 let bestCar = null;
 let currentGeneration = parseInt(localStorage.getItem('genCount')) || 1;
-let mutationAmount = 0.5; // Mutación fuerte pero controlada
+let mutationAmount = 0.5; 
 let frameCounter = 0; 
-const MAX_FRAMES = 400; // --- NUEVO: Iteraciones al doble de velocidad ---
+// --- AJUSTE: Regresamos a ~6 segundos de tiempo ---
+const MAX_FRAMES = 400; 
 
 document.getElementById('gen-count').innerText = currentGeneration;
 
-// 1. --- NUEVO: CALCULAR BORDES (AHORA SELLADOS) ---
+// Calcular Bordes Sellados
 if (trackPoints.length > 1) {
     const halfWidth = laneWidth / 2;
     let prevLeft = null;
@@ -39,7 +42,6 @@ if (trackPoints.length > 1) {
         roadBorders.push([clStart, clEnd]);
         roadBorders.push([crStart, crEnd]);
 
-        // Este pedacito de código sella los huecos de las esquinas
         if (prevLeft) {
             roadBorders.push([prevLeft, clStart]);
             roadBorders.push([prevRight, crStart]);
@@ -73,9 +75,11 @@ if (savedBrain) {
     });
 }
 
+// --- ARREGLO: Reset auto-inicia la simulación ---
 document.getElementById('resetBtn').onclick = () => {
     if (confirm("🚨 ¿Estás seguro de purgar el ADN? Esto te devuelve a la Generación 1.")) {
         localStorage.clear();
+        localStorage.setItem('simulationRunning', 'true'); // Lo forzamos a arrancar
         location.reload();
     }
 };
@@ -110,30 +114,33 @@ function animate() {
         cars.forEach(car => {
             car.update(roadBorders);
 
-            // --- NUEVO: FITNESS SECUENCIAL (ADIÓS A LA TRAMPA) ---
-            // Solo nos fijamos si alcanzó el siguiente punto que le toca
+            // ❌ ELIMINADO EL BUG ASESINO DEL KILL SWITCH AQUÍ ❌
+            // Las paredes físicas ya están selladas, ellas se encargarán de matarlos si chocan.
+
+            // FITNESS CONTINUO (PUNTAJE MILIMÉTRICO)
             const targetIndex = car.currentCheckpoint + 1;
             if (targetIndex < trackPoints.length) {
                 const targetPoint = trackPoints[targetIndex];
                 const d = Math.hypot(car.x - targetPoint.x, car.y - targetPoint.y);
-                // Si pasa a menos de 50px de su próximo objetivo, avanza de nivel
+                
                 if (d < 50) {
-                    car.currentCheckpoint = targetIndex;
+                    car.currentCheckpoint = targetIndex; 
                 }
+                
+                car.fitness = (car.currentCheckpoint * 1000) - d;
+            } else {
+                car.fitness = car.currentCheckpoint * 1000;
             }
-            car.fitness = car.currentCheckpoint;
         });
 
-        // Buscamos al mejor y actualizamos contadores
         bestCar = cars.reduce((prev, curr) => prev.fitness > curr.fitness ? prev : curr);
         const aliveCars = cars.filter(car => !car.damaged);
 
-        document.getElementById('best-fitness').innerText = `CHECKPOINT: ${bestCar.fitness}`;
+        document.getElementById('best-fitness').innerText = `SCORE: ${bestCar.fitness.toFixed(1)}`;
         document.getElementById('alive-count').innerText = aliveCars.length;
 
         cars.forEach(car => car.draw(ctx, car === bestCar));
 
-        // REINICIO ULTRARRÁPIDO
         if (aliveCars.length === 0 || frameCounter > MAX_FRAMES) {
             localStorage.setItem('bestBrain', JSON.stringify(bestCar.brain));
             localStorage.setItem('genCount', currentGeneration + 1);

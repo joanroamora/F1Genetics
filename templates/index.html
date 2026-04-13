@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>F1 Genetics - Live Simulation</title>
     <style>
-        /* Base Styling */
         body { 
             background: #121212; 
             color: #e0e0e0; 
@@ -24,7 +23,6 @@
             text-transform: uppercase;
         }
 
-        /* Stats Dashboard */
         #stats-container { 
             background: #1e1e1e; 
             padding: 20px; 
@@ -47,7 +45,6 @@
             float: right;
         }
 
-        /* Simulation Canvas */
         canvas { 
             background: #252525; 
             border: 3px solid #333; 
@@ -55,7 +52,6 @@
             box-shadow: 0 0 30px rgba(0,0,0,0.4); 
         }
 
-        /* Botones de Acción */
         .controls { 
             margin-top: 25px; 
             display: flex; 
@@ -142,12 +138,11 @@
             popSize: parseInt("{{ population }}")
         };
 
-        const currentGen = parseInt(localStorage.getItem('genCount')) || 1;
         const startBtn = document.getElementById('startBtn');
         const statusDisplay = document.getElementById('status');
 
-        // La simulación arranca automáticamente solo si ya hay una evolución en curso (Gen > 1)
-        window.simulationRunning = (localStorage.getItem('simulationRunning') === 'true') && (currentGen > 1);
+        // Lee si venimos de un reset o de un salto automático
+        window.simulationRunning = localStorage.getItem('simulationRunning') === 'true';
 
         function activateUI() {
             statusDisplay.innerText = "RUNNING";
@@ -165,9 +160,6 @@
             localStorage.setItem('simulationRunning', 'true'); 
             activateUI();
         };
-
-        // NOTA: La lógica de resetBtn y nextGenBtn fue eliminada de aquí para evitar el conflicto.
-        // Ahora main.js se encarga de escuchar los clics de esos botones y ejecutar las funciones de guardado.
     </script>
 
     <script src="{{ url_for('static', filename='js/tracks_data.js') }}"></script>
