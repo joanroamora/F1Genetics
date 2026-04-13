@@ -12,7 +12,7 @@ const laneWidth = 45;
 const roadBorders = [];
 let bestCar = null;
 let currentGeneration = parseInt(localStorage.getItem('genCount')) || 1;
-let mutationAmount = 0.7; 
+let mutationAmount = 0.7; // Mutación agresiva
 let frameCounter = 0; 
 const MAX_FRAMES = 800; // Máximo de tiempo por iteración
 
@@ -58,17 +58,22 @@ if (savedBrain) {
     });
 }
 
-// --- CONTROLES DE LA INTERFAZ ---
+// --- CONTROLES DE LA INTERFAZ MEJORADOS ---
 document.getElementById('resetBtn').onclick = () => {
-    localStorage.clear();
-    location.reload();
+    if (confirm("🚨 ¿Estás seguro de purgar el ADN? Esto te devuelve a la Generación 1.")) {
+        localStorage.clear();
+        location.reload();
+    }
 };
 
 document.getElementById('nextGenBtn').onclick = () => {
-    // Forzar el guardado y pasar a la siguiente
-    localStorage.setItem('bestBrain', JSON.stringify(bestCar.brain));
-    localStorage.setItem('genCount', currentGeneration + 1);
-    location.reload();
+    // Verificamos que exista un carro antes de intentar guardar su cerebro
+    if (bestCar && bestCar.brain) {
+        localStorage.setItem('bestBrain', JSON.stringify(bestCar.brain));
+        localStorage.setItem('genCount', currentGeneration + 1);
+        localStorage.setItem('simulationRunning', 'true'); 
+        location.reload();
+    }
 };
 
 function drawRoad() {
@@ -86,55 +91,64 @@ function animate() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawRoad();
 
-    frameCounter++;
-    
-    cars.forEach(car => {
-        car.update(roadBorders);
+    // SOLO AVANZA SI LA SIMULACIÓN ESTÁ ACTIVA (Respeta el botón START)
+    if (window.simulationRunning) {
+        frameCounter++;
+        
+        cars.forEach(car => {
+            car.update(roadBorders);
 
-        // --- ARREGLO DEL HUECO EN LA CURVA ---
-        // Si el carro se aleja más de 32 píxeles de cualquier punto central, muere.
-        // Esto evita que crucen los bordes matemáticos abiertos.
-        let minDistance = Infinity;
-        for(let i=0; i<trackPoints.length; i++){
-            const d = Math.hypot(car.x - trackPoints[i].x, car.y - trackPoints[i].y);
-            if(d < minDistance) minDistance = d;
-        }
-        if (minDistance > 32) car.damaged = true; // Kill switch estricto
-
-        // Cálculo de Fitness (Puntos superados)
-        car.fitness = 0;
-        let closestIndex = 0;
-        let minDistFit = Infinity;
-        for (let i = 0; i < trackPoints.length; i++) {
-            const d = Math.hypot(car.x - trackPoints[i].x, car.y - trackPoints[i].y);
-            if (d < minDistFit) {
-                minDistFit = d;
-                closestIndex = i;
+            // --- ARREGLO DEL HUECO EN LA CURVA ---
+            let minDistance = Infinity;
+            for(let i=0; i<trackPoints.length; i++){
+                const d = Math.hypot(car.x - trackPoints[i].x, car.y - trackPoints[i].y);
+                if(d < minDistance) minDistance = d;
             }
+            if (minDistance > 32) car.damaged = true; // Kill switch estricto
+
+            // Cálculo de Fitness (Puntos superados)
+            car.fitness = 0;
+            let closestIndex = 0;
+            let minDistFit = Infinity;
+            for (let i = 0; i < trackPoints.length; i++) {
+                const d = Math.hypot(car.x - trackPoints[i].x, car.y - trackPoints[i].y);
+                if (d < minDistFit) {
+                    minDistFit = d;
+                    closestIndex = i;
+                }
+            }
+            car.fitness = closestIndex;
+        });
+
+        // Encontrar el mejor para guardarlo
+        bestCar = cars.reduce((prev, curr) => prev.fitness > curr.fitness ? prev : curr);
+        const aliveCars = cars.filter(car => !car.damaged);
+
+        // Actualizar Panel
+        document.getElementById('best-fitness').innerText = `CHECKPOINT: ${bestCar.fitness}`;
+        document.getElementById('alive-count').innerText = aliveCars.length;
+
+        // Dibujar los carros y el sensor del líder
+        cars.forEach(car => car.draw(ctx, car === bestCar));
+
+        // REINICIO AUTOMÁTICO SI TODOS MUEREN O EL TIEMPO EXPIRA
+        if (aliveCars.length === 0 || frameCounter > MAX_FRAMES) {
+            localStorage.setItem('bestBrain', JSON.stringify(bestCar.brain));
+            localStorage.setItem('genCount', currentGeneration + 1);
+            localStorage.setItem('simulationRunning', 'true'); 
+            location.reload();
         }
-        car.fitness = closestIndex;
-    });
 
-    // Encontrar el mejor para guardarlo
-    bestCar = cars.reduce((prev, curr) => prev.fitness > curr.fitness ? prev : curr);
-    const aliveCars = cars.filter(car => !car.damaged);
-
-    // Actualizar Panel
-    document.getElementById('best-fitness').innerText = `CHECKPOINT: ${bestCar.fitness}`;
-    document.getElementById('alive-count').innerText = aliveCars.length;
-
-    // Dibujar los carros y el sensor del líder
-    cars.forEach(car => car.draw(ctx, car === bestCar));
-
-    // REINICIO AUTOMÁTICO SI TODOS MUEREN O EL TIEMPO EXPIRA
-    if (aliveCars.length === 0 || frameCounter > MAX_FRAMES) {
-        localStorage.setItem('bestBrain', JSON.stringify(bestCar.brain));
-        localStorage.setItem('genCount', currentGeneration + 1);
-        location.reload();
+    } else {
+        // MODO DE ESPERA: Muestra los carros pero no los mueve
+        ctx.fillStyle = "white"; 
+        ctx.font = "14px Arial";
+        ctx.fillText(`BRANCH: MONACO - Waiting for START...`, 10, 20);
+        cars.forEach(car => car.draw(ctx, car === cars[0]));
     }
 
     requestAnimationFrame(animate);
 }
 
-// Inicia el bucle de inmediato sin esperar botón
+// Inicia el bucle visual
 animate();

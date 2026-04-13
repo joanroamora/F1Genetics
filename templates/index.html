@@ -166,25 +166,8 @@
             activateUI();
         };
 
-        // Eventos para los nuevos botones de control
-        document.getElementById('resetBtn').onclick = () => {
-            if(confirm("¿Estás seguro de querer borrar todo el progreso genético?")) {
-                if(window.resetEvolution) {
-                    window.resetEvolution();
-                } else {
-                    localStorage.clear();
-                    location.reload();
-                }
-            }
-        };
-
-        document.getElementById('nextGenBtn').onclick = () => {
-            // Esta lógica se apoya en que main.js gestione el guardado al detectar el fin de la gen
-            // Por ahora forzamos un reload con incremento si el usuario lo pide
-            const gen = parseInt(localStorage.getItem('genCount')) || 1;
-            localStorage.setItem('genCount', gen + 1);
-            location.reload();
-        };
+        // NOTA: La lógica de resetBtn y nextGenBtn fue eliminada de aquí para evitar el conflicto.
+        // Ahora main.js se encarga de escuchar los clics de esos botones y ejecutar las funciones de guardado.
     </script>
 
     <script src="{{ url_for('static', filename='js/tracks_data.js') }}"></script>
