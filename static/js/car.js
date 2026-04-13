@@ -7,61 +7,55 @@ class Car {
         this.height = height;
 
         this.sensor = new Sensor(this);
-        // Brain: 5 inputs, 6 hidden, 4 outputs
         this.brain = new NeuralNetwork([this.sensor.rayCount, 6, 4]); 
 
         this.speed = 0;
         this.angle = 0;
         this.damaged = false;
         
-        // --- NUEVO: SISTEMA ANTIPEREZA ---
-        this.idleTime = 0;       // Cronómetro de inactividad
-        this.maxIdleTime = 60;   // 60 fotogramas = 1 segundo de tolerancia antes de morir
+        // --- NUEVO: ANTIPEREZA BLINDADO Y GPS ---
+        this.idleTime = 0;
+        this.lastX = x;
+        this.lastY = y;
+        this.currentCheckpoint = 0; // Ahora deben pasarlos en estricto orden
 
         this.acceleration = 0.2;
-        this.maxSpeed = 2;
+        this.maxSpeed = 2; // Velocidad de aprendizaje
         this.friction = 0.05;
 
         this.controls = {
-            forward: true,
-            left: false,
-            right: false,
-            reverse: false
+            forward: true, left: false, right: false, reverse: false
         };
-        this.polygon = []; // Para detectar colisiones
+        this.polygon = []; 
     }
 
     update(roadBorders) {
         if (!this.damaged) {
             this.#move();
 
-            // --- NUEVO: LÓGICA DE MUERTE POR INACTIVIDAD ---
-            // Si la velocidad es ridículamente baja, sumamos tiempo al cronómetro
-            if (Math.abs(this.speed) < 0.1) {
-                this.idleTime++;
-            } else {
-                this.idleTime = 0; // Si se mueve rápido, reseteamos el cronómetro
+            // --- NUEVO: MUERTE POR VIBRACIÓN ---
+            // Cada medio segundo (30 frames) verificamos si se movió de verdad
+            this.idleTime++;
+            if (this.idleTime % 30 === 0) {
+                const distMoved = Math.hypot(this.x - this.lastX, this.y - this.lastY);
+                if (distMoved < 3) { // Si no avanzó ni 3 píxeles, se muere
+                    this.damaged = true;
+                }
+                this.lastX = this.x;
+                this.lastY = this.y;
             }
 
-            // Si el carro lleva más de 1 segundo quieto, le apagamos el motor
-            if (this.idleTime >= this.maxIdleTime) {
-                this.damaged = true;
-            }
-
-            // 1. Detectar Colisión contra paredes
             this.polygon = this.#createPolygon();
-            // Solo evaluamos el choque si no ha muerto por pereza primero
+            
             if (!this.damaged) {
                 this.damaged = this.#assessDamage(roadBorders);
             }
             
-            // 2. Alimentar al Cerebro (Inputs)
             this.sensor.update(roadBorders);
             const offsets = this.sensor.readings.map(
                 s => s == null ? 0 : 1 - s.offset
             );
             
-            // 3. El Cerebro Decide (Outputs)
             const outputs = NeuralNetwork.feedForward(offsets, this.brain);
             this.controls.forward = outputs[0];
             this.controls.left = outputs[1];
@@ -93,10 +87,8 @@ class Car {
     #move() {
         if (this.controls.forward) { this.speed += this.acceleration; }
         if (this.controls.reverse) { this.speed -= this.acceleration; }
-
         if (this.speed > this.maxSpeed) { this.speed = this.maxSpeed; }
         if (this.speed < -this.maxSpeed / 2) { this.speed = -this.maxSpeed / 2; }
-
         if (this.speed > 0) { this.speed -= this.friction; }
         if (this.speed < 0) { this.speed += this.friction; }
         if (Math.abs(this.speed) < this.friction) { this.speed = 0; }
@@ -112,16 +104,12 @@ class Car {
     }
 
     draw(ctx, drawSensor) {
-        if (this.sensor && drawSensor) {
-            this.sensor.draw(ctx);
-        }
-
+        if (this.sensor && drawSensor) { this.sensor.draw(ctx); }
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.rotate(-this.angle);
 
         const radius = this.width / 2; 
-
         ctx.beginPath();
         ctx.arc(0, 0, radius, 0, Math.PI * 2); 
         ctx.fillStyle = this.damaged ? "#555" : "#FF0000"; 
@@ -137,7 +125,6 @@ class Car {
             ctx.fillStyle = "white";
             ctx.fill();
         }
-
         ctx.restore();
     }
 }
