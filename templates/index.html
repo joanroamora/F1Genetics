@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>F1 Genetics - Live Simulation</title>
     <style>
-        /* Base Styling */
         body { 
             background: #121212; 
             color: #e0e0e0; 
@@ -24,7 +23,6 @@
             text-transform: uppercase;
         }
 
-        /* Stats Dashboard */
         #stats-container { 
             background: #1e1e1e; 
             padding: 20px; 
@@ -47,7 +45,6 @@
             float: right;
         }
 
-        /* Simulation Canvas */
         canvas { 
             background: #252525; 
             border: 3px solid #333; 
@@ -55,27 +52,45 @@
             box-shadow: 0 0 30px rgba(0,0,0,0.4); 
         }
 
-        /* Racing Button */
-        .controls { margin-top: 25px; }
+        .controls { 
+            margin-top: 25px; 
+            display: flex; 
+            gap: 15px; 
+            justify-content: center; 
+            width: 100%; 
+            max-width: 800px; 
+        }
         
-        .btn-start {
-            background: #e10600; /* F1 Red */
+        .btn-action {
             color: white;
             border: none;
-            padding: 18px 50px;
-            font-size: 1.2em;
+            padding: 15px 25px;
+            font-size: 0.9em;
             font-weight: bold;
             text-transform: uppercase;
-            letter-spacing: 1px;
             border-radius: 4px;
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 0 #8a0400;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+            min-width: 180px;
         }
 
-        .btn-start:hover { background: #ff1e1e; transform: translateY(-2px); box-shadow: 0 6px 0 #8a0400; }
-        .btn-start:active { transform: translateY(2px); box-shadow: 0 0 0 #8a0400; }
-        .btn-start:disabled { background: #444; box-shadow: none; cursor: not-allowed; opacity: 0.6; }
+        .btn-action:hover { transform: translateY(-2px); box-shadow: 0 6px 0 rgba(0,0,0,0.3); }
+        .btn-action:active { transform: translateY(2px); box-shadow: 0 0 0 rgba(0,0,0,0.3); }
+        .btn-action:disabled { background: #444; cursor: not-allowed; opacity: 0.6; transform: none; box-shadow: none; }
+
+        .btn-red { background: #e10600; }
+        .btn-red:hover { background: #ff1e1e; }
+        
+        .btn-blue { background: #007bff; }
+        .btn-blue:hover { background: #0056b3; }
+        
+        .btn-gray { background: #555; }
+        .btn-gray:hover { background: #777; }
     </style>
 </head>
 <body>
@@ -108,35 +123,49 @@
         </div>
     </div>
 
-    <canvas id="simulationCanvas" width="800" height="600"></canvas>
+    <canvas id="simulationCanvas" width="1000" height="700"></canvas>
 
     <div class="controls">
-        <button id="startBtn" class="btn-start">START ENGINES</button>
+        <button id="startBtn" class="btn-action btn-red">🚀 START ENGINES</button>
+        <button id="resetBtn" class="btn-action btn-gray">🗑️ RESET EVOLUTION</button>
+        <button id="nextGenBtn" class="btn-action btn-blue">⏭️ SKIP TO NEXT GEN</button>
+        <a href="/" class="btn-action btn-gray" style="min-width: 120px;">⚙️ SETUP</a>
     </div>
 
     <script>
-        const config = {
+        window.config = {
             trackName: "{{ track }}",
             popSize: parseInt("{{ population }}")
         };
 
         const startBtn = document.getElementById('startBtn');
         const statusDisplay = document.getElementById('status');
-        let simulationRunning = false;
 
-        startBtn.onclick = () => {
-            simulationRunning = true;
+        // Lee si venimos de un reset o de un salto automático
+        window.simulationRunning = localStorage.getItem('simulationRunning') === 'true';
+
+        function activateUI() {
             statusDisplay.innerText = "RUNNING";
             statusDisplay.style.color = "#00ff41";
-            
             startBtn.disabled = true;
             startBtn.innerText = "SYSTEM ACTIVE";
-            
-            console.log(`Starting simulation on ${config.trackName} with ${config.popSize} agents.`);
-            // Trigger main logic start here
+        }
+
+        if (window.simulationRunning) {
+            activateUI();
+        }
+
+        startBtn.onclick = () => {
+            window.simulationRunning = true;
+            localStorage.setItem('simulationRunning', 'true'); 
+            activateUI();
         };
     </script>
-    
+
+    <script src="{{ url_for('static', filename='js/tracks_data.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/network.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/sensor.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/car.js') }}"></script> 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
