@@ -7,21 +7,21 @@ const populationSize = window.config.popSize;
 
 const safeData = typeof TRACKS_DATA !== 'undefined' ? TRACKS_DATA : {};
 let trackPoints = safeData[trackName] || [];
-
-// --- AJUSTE: Pista un poco más ancha para permitir maniobras en Mónaco ---
 const laneWidth = 60; 
 
 const roadBorders = [];
 let bestCar = null;
+
+// LECTURA ESTRICTA DE MEMORIA
 let currentGeneration = parseInt(localStorage.getItem('genCount')) || 1;
-let mutationAmount = 0.5; 
+let bestScoreEver = parseFloat(localStorage.getItem('bestScoreEver')) || 0;
+let stagnationCounter = parseInt(localStorage.getItem('stagnationCounter')) || 0;
+
 let frameCounter = 0; 
-// --- AJUSTE: Regresamos a ~6 segundos de tiempo ---
 const MAX_FRAMES = 400; 
 
 document.getElementById('gen-count').innerText = currentGeneration;
 
-// Calcular Bordes Sellados
 if (trackPoints.length > 1) {
     const halfWidth = laneWidth / 2;
     let prevLeft = null;
@@ -52,10 +52,11 @@ if (trackPoints.length > 1) {
 }
 
 const cars = [];
+let initialAngle = 0;
 if (trackPoints.length > 1) {
     const dx = trackPoints[1].x - trackPoints[0].x;
     const dy = trackPoints[1].y - trackPoints[0].y;
-    const initialAngle = Math.atan2(-dx, -dy); 
+    initialAngle = Math.atan2(-dx, -dy); 
 
     for (let i = 0; i < populationSize; i++) {
         const car = new Car(trackPoints[0].x, trackPoints[0].y, 12, 12);
@@ -67,29 +68,62 @@ if (trackPoints.length > 1) {
 bestCar = cars[0];
 const savedBrain = localStorage.getItem('bestBrain');
 if (savedBrain) {
-    cars.forEach(car => {
+    cars.forEach((car, index) => {
         car.brain = JSON.parse(savedBrain); 
-        if (car !== cars[0]) {
-            NeuralNetwork.mutate(car.brain, mutationAmount);
+        if (index !== 0) {
+            // Si hay estancamiento, la mutación es violenta (0.7), si no, es suave de aprendizaje (0.1)
+            let mutationRate = stagnationCounter >= 3 ? 0.7 : 0.1;
+            NeuralNetwork.mutate(car.brain, mutationRate);
         }
     });
 }
 
-// --- ARREGLO: Reset auto-inicia la simulación ---
+function nextGeneration() {
+    // --- NUEVO: LÓGICA DE ESTANCAMIENTO ---
+    if (bestCar.fitness > bestScoreEver + 50) {
+        // Hubo progreso real
+        bestScoreEver = bestCar.fitness;
+        stagnationCounter = 0;
+    } else {
+        // Se quedaron atascados
+        stagnationCounter++;
+    }
+
+    // Si se atascan más de 8 generaciones, borramos el cerebro porque no sirve
+    if (stagnationCounter >= 8) {
+        localStorage.removeItem('bestBrain');
+        bestScoreEver = 0;
+        stagnationCounter = 0;
+    } else {
+        localStorage.setItem('bestBrain', JSON.stringify(bestCar.brain));
+    }
+
+    localStorage.setItem('bestScoreEver', bestScoreEver);
+    localStorage.setItem('stagnationCounter', stagnationCounter);
+
+    currentGeneration++;
+    localStorage.setItem('genCount', currentGeneration);
+    
+    // Recarga obligatoria para asegurar limpieza de memoria
+    location.reload(); 
+}
+
+// --- RESET ABSOLUTO (Garantiza volver al estado 0) ---
 document.getElementById('resetBtn').onclick = () => {
-    if (confirm("🚨 ¿Estás seguro de purgar el ADN? Esto te devuelve a la Generación 1.")) {
+    if (confirm("🚨 ¿Purgar ADN? Esto borra la memoria y vuelve a la Generación 1.")) {
         localStorage.clear();
-        localStorage.setItem('simulationRunning', 'true'); // Lo forzamos a arrancar
-        location.reload();
+        // Seteamos explícitamente los valores base
+        localStorage.setItem('genCount', '1'); 
+        localStorage.setItem('bestScoreEver', '0');
+        localStorage.setItem('stagnationCounter', '0');
+        localStorage.setItem('simulationRunning', 'true'); 
+        location.reload(); 
     }
 };
 
 document.getElementById('nextGenBtn').onclick = () => {
     if (bestCar && bestCar.brain) {
-        localStorage.setItem('bestBrain', JSON.stringify(bestCar.brain));
-        localStorage.setItem('genCount', currentGeneration + 1);
-        localStorage.setItem('simulationRunning', 'true'); 
-        location.reload();
+        nextGeneration(); 
     }
 };
 
@@ -114,16 +148,12 @@ function animate() {
         cars.forEach(car => {
             car.update(roadBorders);
 
-            // ❌ ELIMINADO EL BUG ASESINO DEL KILL SWITCH AQUÍ ❌
-            // Las paredes físicas ya están selladas, ellas se encargarán de matarlos si chocan.
-
-            // FITNESS CONTINUO (PUNTAJE MILIMÉTRICO)
             const targetIndex = car.currentCheckpoint + 1;
             if (targetIndex < trackPoints.length) {
                 const targetPoint = trackPoints[targetIndex];
                 const d = Math.hypot(car.x - targetPoint.x, car.y - targetPoint.y);
                 
-                if (d < 50) {
+                if (d < 100) {
                     car.currentCheckpoint = targetIndex; 
                 }
                 
@@ -136,16 +166,15 @@ function animate() {
         bestCar = cars.reduce((prev, curr) => prev.fitness > curr.fitness ? prev : curr);
         const aliveCars = cars.filter(car => !car.damaged);
 
-        document.getElementById('best-fitness').innerText = `SCORE: ${bestCar.fitness.toFixed(1)}`;
+        // Agregué el indicador de mutación a la UI para que usted sepa cuándo están atascados
+        let mutationStatus = stagnationCounter >= 3 ? "HIGH (BREAKOUT)" : "NORMAL";
+        document.getElementById('best-fitness').innerText = `SCORE: ${bestCar.fitness.toFixed(0)} | MUTATION: ${mutationStatus}`;
         document.getElementById('alive-count').innerText = aliveCars.length;
 
         cars.forEach(car => car.draw(ctx, car === bestCar));
 
         if (aliveCars.length === 0 || frameCounter > MAX_FRAMES) {
-            localStorage.setItem('bestBrain', JSON.stringify(bestCar.brain));
-            localStorage.setItem('genCount', currentGeneration + 1);
-            localStorage.setItem('simulationRunning', 'true'); 
-            location.reload();
+            nextGeneration();
         }
 
     } else {

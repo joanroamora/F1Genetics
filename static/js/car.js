@@ -7,25 +7,24 @@ class Car {
         this.height = height;
 
         this.sensor = new Sensor(this);
-        this.brain = new NeuralNetwork([this.sensor.rayCount, 6, 4]); 
+        // --- ARREGLO: 7 sensores (visión 180°), 6 neuronas ocultas, 3 salidas (Acelerar, Izq, Der) ---
+        this.brain = new NeuralNetwork([this.sensor.rayCount, 6, 3]); 
 
         this.speed = 0;
         this.angle = 0;
         this.damaged = false;
         
-        // --- NUEVO: ANTIPEREZA BLINDADO Y GPS ---
         this.idleTime = 0;
         this.lastX = x;
         this.lastY = y;
-        this.currentCheckpoint = 0; // Ahora deben pasarlos en estricto orden
+        this.currentCheckpoint = 0; 
 
         this.acceleration = 0.2;
-        this.maxSpeed = 2; // Velocidad de aprendizaje
+        this.maxSpeed = 2; 
         this.friction = 0.05;
 
-        this.controls = {
-            forward: true, left: false, right: false, reverse: false
-        };
+        // Quitamos la reversa de los controles
+        this.controls = { forward: false, left: false, right: false };
         this.polygon = []; 
     }
 
@@ -33,12 +32,11 @@ class Car {
         if (!this.damaged) {
             this.#move();
 
-            // --- NUEVO: MUERTE POR VIBRACIÓN ---
-            // Cada medio segundo (30 frames) verificamos si se movió de verdad
+            // Muerte por inactividad
             this.idleTime++;
             if (this.idleTime % 30 === 0) {
                 const distMoved = Math.hypot(this.x - this.lastX, this.y - this.lastY);
-                if (distMoved < 3) { // Si no avanzó ni 3 píxeles, se muere
+                if (distMoved < 3) { 
                     this.damaged = true;
                 }
                 this.lastX = this.x;
@@ -57,18 +55,17 @@ class Car {
             );
             
             const outputs = NeuralNetwork.feedForward(offsets, this.brain);
+            
+            // --- ARREGLO: Mapeo de 3 salidas. No hay reversa ---
             this.controls.forward = outputs[0];
             this.controls.left = outputs[1];
             this.controls.right = outputs[2];
-            this.controls.reverse = outputs[3];
         }
     }
 
     #assessDamage(roadBorders) {
         for (let i = 0; i < roadBorders.length; i++) {
-            if (polysIntersect(this.polygon, roadBorders[i])) {
-                return true;
-            }
+            if (polysIntersect(this.polygon, roadBorders[i])) { return true; }
         }
         return false;
     }
@@ -86,11 +83,8 @@ class Car {
 
     #move() {
         if (this.controls.forward) { this.speed += this.acceleration; }
-        if (this.controls.reverse) { this.speed -= this.acceleration; }
         if (this.speed > this.maxSpeed) { this.speed = this.maxSpeed; }
-        if (this.speed < -this.maxSpeed / 2) { this.speed = -this.maxSpeed / 2; }
         if (this.speed > 0) { this.speed -= this.friction; }
-        if (this.speed < 0) { this.speed += this.friction; }
         if (Math.abs(this.speed) < this.friction) { this.speed = 0; }
 
         if (this.speed !== 0) {

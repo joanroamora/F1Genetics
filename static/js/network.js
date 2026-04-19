@@ -19,8 +19,8 @@ class NeuralNetwork {
         return outputs;
     }
 
-    // This will be used for the Genetic Algorithm later
-    static mutate(network, amount = 1) {
+    // --- ARREGLO: Mutación controlada (Evita la Explosión de Pesos) ---
+    static mutate(network, amount = 0.1) {
         network.levels.forEach(level => {
             for (let i = 0; i < level.biases.length; i++) {
                 level.biases[i] = lerp(

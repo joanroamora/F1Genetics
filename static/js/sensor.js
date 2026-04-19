@@ -2,9 +2,10 @@
 class Sensor {
     constructor(car) {
         this.car = car;
-        this.rayCount = 5;
-        this.rayLength = 250;
-        this.raySpread = Math.PI / 2; // 90 degrees total spread
+        // --- NUEVO: VISIÓN AUMENTADA ---
+        this.rayCount = 7; // Más rayos para mayor resolución
+        this.rayLength = 200; // Longitud balanceada para reaccionar a tiempo
+        this.raySpread = Math.PI; // 180 grados de visión total (ve a los lados)
 
         this.rays = [];
         this.readings = [];
@@ -77,7 +78,6 @@ class Sensor {
             ctx.lineTo(end.x, end.y);
             ctx.stroke();
 
-            // Draw the rest of the ray in black to show it hit something
             ctx.beginPath();
             ctx.lineWidth = 2;
             ctx.strokeStyle = "black";
