@@ -46,7 +46,10 @@ class Car {
             this.polygon = this.#createPolygon();
             
             if (!this.damaged) {
-                this.damaged = this.#assessDamage(roadBorders);
+                // SOLUCIÓN: 20 frames de inmunidad al nacer para evitar bug de solapamiento de pista
+                if (this.idleTime > 20) {
+                    this.damaged = this.#assessDamage(roadBorders);
+                }
             }
             
             this.sensor.update(roadBorders);
@@ -56,7 +59,6 @@ class Car {
             
             const outputs = NeuralNetwork.feedForward(offsets, this.brain);
             
-            // --- ARREGLO: Mapeo de 3 salidas. No hay reversa ---
             this.controls.forward = outputs[0];
             this.controls.left = outputs[1];
             this.controls.right = outputs[2];

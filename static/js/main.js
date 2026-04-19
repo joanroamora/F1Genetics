@@ -166,9 +166,9 @@ function animate() {
         bestCar = cars.reduce((prev, curr) => prev.fitness > curr.fitness ? prev : curr);
         const aliveCars = cars.filter(car => !car.damaged);
 
-        // Agregué el indicador de mutación a la UI para que usted sepa cuándo están atascados
-        let mutationStatus = stagnationCounter >= 3 ? "HIGH (BREAKOUT)" : "NORMAL";
-        document.getElementById('best-fitness').innerText = `SCORE: ${bestCar.fitness.toFixed(0)} | MUTATION: ${mutationStatus}`;
+        // Acortamos los textos para evitar que rompan el tamaño del contenedor
+        let mutationStatus = stagnationCounter >= 3 ? "ALTA" : "NORM";
+        document.getElementById('best-fitness').innerText = `SCORE: ${bestCar.fitness.toFixed(0)} | MUT: ${mutationStatus}`;
         document.getElementById('alive-count').innerText = aliveCars.length;
 
         cars.forEach(car => car.draw(ctx, car === bestCar));
