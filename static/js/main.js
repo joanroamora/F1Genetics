@@ -4,24 +4,40 @@ const ctx = canvas.getContext('2d');
 
 const trackName = window.config.trackName;
 const populationSize = window.config.popSize;
+const brainMode = window.config.brainMode;
 
 const safeData = typeof TRACKS_DATA !== 'undefined' ? TRACKS_DATA : {};
 let trackPoints = safeData[trackName] || [];
 const laneWidth = 60; 
-
 const roadBorders = [];
 let bestCar = null;
+let cars = [];
 
-// LECTURA ESTRICTA DE MEMORIA
-let currentGeneration = parseInt(localStorage.getItem('genCount')) || 1;
-let bestScoreEver = parseFloat(localStorage.getItem('bestScoreEver')) || 0;
-let stagnationCounter = parseInt(localStorage.getItem('stagnationCounter')) || 0;
+// TRACK-BASED STORAGE ISOLATION (Using specific keys for each circuit)
+const KEY_GEN = `genCount_${trackName}`;
+const KEY_SCORE = `bestScoreEver_${trackName}`;
+const KEY_STAGNATION = `stagnationCounter_${trackName}`;
+const KEY_BRAIN = `bestBrain_${trackName}`;
+const KEY_RUNNING = `simulationRunning_${trackName}`;
+
+// If the mode is "scratch", we clear the memory for this specific track before starting
+if (brainMode === 'scratch' && localStorage.getItem(KEY_RUNNING) !== 'true') {
+    localStorage.removeItem(KEY_GEN);
+    localStorage.removeItem(KEY_SCORE);
+    localStorage.removeItem(KEY_STAGNATION);
+    localStorage.removeItem(KEY_BRAIN);
+}
+
+let currentGeneration = parseInt(localStorage.getItem(KEY_GEN)) || 1;
+let bestScoreEver = parseFloat(localStorage.getItem(KEY_SCORE)) || 0;
+let stagnationCounter = parseInt(localStorage.getItem(KEY_STAGNATION)) || 0;
 
 let frameCounter = 0; 
 const MAX_FRAMES = 400; 
 
 document.getElementById('gen-count').innerText = currentGeneration;
 
+// Generate track borders
 if (trackPoints.length > 1) {
     const halfWidth = laneWidth / 2;
     let prevLeft = null;
@@ -51,72 +67,90 @@ if (trackPoints.length > 1) {
     }
 }
 
-const cars = [];
-let initialAngle = 0;
-if (trackPoints.length > 1) {
-    const dx = trackPoints[1].x - trackPoints[0].x;
-    const dy = trackPoints[1].y - trackPoints[0].y;
-    initialAngle = Math.atan2(-dx, -dy); 
+// ASYNC INITIALIZATION (Allows loading external brain files)
+async function initializeSimulation() {
+    let initialAngle = 0;
+    if (trackPoints.length > 1) {
+        const dx = trackPoints[1].x - trackPoints[0].x;
+        const dy = trackPoints[1].y - trackPoints[0].y;
+        initialAngle = Math.atan2(-dx, -dy); 
+    }
 
     for (let i = 0; i < populationSize; i++) {
         const car = new Car(trackPoints[0].x, trackPoints[0].y, 12, 12);
         car.angle = initialAngle; 
         cars.push(car);
     }
-}
+    bestCar = cars[0];
 
-bestCar = cars[0];
-const savedBrain = localStorage.getItem('bestBrain');
-if (savedBrain) {
-    cars.forEach((car, index) => {
-        car.brain = JSON.parse(savedBrain); 
-        if (index !== 0) {
-            // Si hay estancamiento, la mutación es violenta (0.7), si no, es suave de aprendizaje (0.1)
-            let mutationRate = stagnationCounter >= 3 ? 0.7 : 0.1;
-            NeuralNetwork.mutate(car.brain, mutationRate);
+    let savedBrainStr = null;
+
+    // Brain loading logic based on brainMode
+    if (brainMode === 'file') {
+        try {
+            const response = await fetch(`/static/brains/${trackName}_best.json`);
+            if (response.ok) {
+                const data = await response.json();
+                savedBrainStr = JSON.stringify(data);
+                console.log(`[SUCCESS] Master brain for ${trackName} loaded from file.`);
+            } else {
+                console.warn(`[WARN] File /static/brains/${trackName}_best.json not found. Using local memory.`);
+                savedBrainStr = localStorage.getItem(KEY_BRAIN);
+            }
+        } catch (e) {
+            console.error("Error fetching brain file:", e);
+            savedBrainStr = localStorage.getItem(KEY_BRAIN);
         }
-    });
+    } else {
+        savedBrainStr = localStorage.getItem(KEY_BRAIN);
+    }
+
+    if (savedBrainStr) {
+        cars.forEach((car, index) => {
+            car.brain = JSON.parse(savedBrainStr); 
+            if (index !== 0) {
+                let mutationRate = stagnationCounter >= 3 ? 0.7 : 0.1;
+                NeuralNetwork.mutate(car.brain, mutationRate);
+            }
+        });
+    }
+
+    animate();
 }
 
 function nextGeneration() {
-    // --- NUEVO: LÓGICA DE ESTANCAMIENTO ---
     if (bestCar.fitness > bestScoreEver + 50) {
-        // Hubo progreso real
         bestScoreEver = bestCar.fitness;
         stagnationCounter = 0;
     } else {
-        // Se quedaron atascados
         stagnationCounter++;
     }
 
-    // Si se atascan más de 8 generaciones, borramos el cerebro porque no sirve
     if (stagnationCounter >= 8) {
-        localStorage.removeItem('bestBrain');
+        localStorage.removeItem(KEY_BRAIN);
         bestScoreEver = 0;
         stagnationCounter = 0;
     } else {
-        localStorage.setItem('bestBrain', JSON.stringify(bestCar.brain));
+        localStorage.setItem(KEY_BRAIN, JSON.stringify(bestCar.brain));
     }
 
-    localStorage.setItem('bestScoreEver', bestScoreEver);
-    localStorage.setItem('stagnationCounter', stagnationCounter);
+    localStorage.setItem(KEY_SCORE, bestScoreEver);
+    localStorage.setItem(KEY_STAGNATION, stagnationCounter);
 
     currentGeneration++;
-    localStorage.setItem('genCount', currentGeneration);
+    localStorage.setItem(KEY_GEN, currentGeneration);
     
-    // Recarga obligatoria para asegurar limpieza de memoria
     location.reload(); 
 }
 
-// --- RESET ABSOLUTO (Garantiza volver al estado 0) ---
+// UI CONTROLS
 document.getElementById('resetBtn').onclick = () => {
-    if (confirm("🚨 ¿Purgar ADN? Esto borra la memoria y vuelve a la Generación 1.")) {
-        localStorage.clear();
-        // Seteamos explícitamente los valores base
-        localStorage.setItem('genCount', '1'); 
-        localStorage.setItem('bestScoreEver', '0');
-        localStorage.setItem('stagnationCounter', '0');
-        localStorage.setItem('simulationRunning', 'true'); 
+    if (confirm(`🚨 Purge DNA for ${trackName.toUpperCase()}? This resets Generation to 1.`)) {
+        localStorage.removeItem(KEY_GEN);
+        localStorage.removeItem(KEY_SCORE);
+        localStorage.removeItem(KEY_STAGNATION);
+        localStorage.removeItem(KEY_BRAIN);
+        localStorage.setItem(KEY_RUNNING, 'true'); 
         location.reload(); 
     }
 };
@@ -125,6 +159,24 @@ document.getElementById('nextGenBtn').onclick = () => {
     if (bestCar && bestCar.brain) {
         nextGeneration(); 
     }
+};
+
+// EXPORT BRAIN TO JSON
+document.getElementById('exportBtn').onclick = () => {
+    const brainToExport = bestCar && bestCar.fitness > 0 ? bestCar.brain : JSON.parse(localStorage.getItem(KEY_BRAIN));
+    
+    if (!brainToExport) {
+        alert("No brain data available to export yet.");
+        return;
+    }
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(brainToExport));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", `${trackName}_best.json`);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
 };
 
 function drawRoad() {
@@ -166,8 +218,7 @@ function animate() {
         bestCar = cars.reduce((prev, curr) => prev.fitness > curr.fitness ? prev : curr);
         const aliveCars = cars.filter(car => !car.damaged);
 
-        // Acortamos los textos para evitar que rompan el tamaño del contenedor
-        let mutationStatus = stagnationCounter >= 3 ? "ALTA" : "NORM";
+        let mutationStatus = stagnationCounter >= 3 ? "HIGH" : "NORM";
         document.getElementById('best-fitness').innerText = `SCORE: ${bestCar.fitness.toFixed(0)} | MUT: ${mutationStatus}`;
         document.getElementById('alive-count').innerText = aliveCars.length;
 
@@ -180,11 +231,12 @@ function animate() {
     } else {
         ctx.fillStyle = "white"; 
         ctx.font = "14px Arial";
-        ctx.fillText(`BRANCH: MONACO - Waiting for START...`, 10, 20);
+        ctx.fillText(`TRACK: ${trackName.toUpperCase()} - Waiting for START...`, 10, 20);
         cars.forEach(car => car.draw(ctx, car === cars[0]));
     }
 
     requestAnimationFrame(animate);
 }
 
-animate();
+// Start the process
+initializeSimulation();
