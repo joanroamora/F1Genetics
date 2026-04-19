@@ -1,0 +1,39 @@
+name: F1 Genetics CI
+
+# Se dispara en push y pull request para ambas ramas
+on:
+  push:
+    branches: [ "main", "monaco" ]
+  pull_request:
+    branches: [ "main", "monaco" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout del código
+      uses: actions/checkout@v4
+
+    - name: Configurar Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Instalar dependencias
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    - name: Validar Sintaxis de Python (Linter)
+      run: |
+        # Verifica errores de sintaxis o variables no definidas
+        python -m compileall .
+
+    - name: Smoke Test - ¿Levanta Flask?
+      run: |
+        # Iniciamos Flask en segundo plano
+        python app.py & 
+        sleep 5
+        # Intentamos un ping a la página de setup
+        curl -f http://127.0.0.1:5000/ || exit 1
