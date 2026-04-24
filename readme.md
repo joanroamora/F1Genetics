@@ -41,6 +41,7 @@ F1Genetics/
 │   └── setup.html          # Configuration and entry page
 ├── app.py                  # Flask application entry point
 └── requirements.txt        # Python dependencies
+```
 
 ## ⚙️ Installation & Setup
 
