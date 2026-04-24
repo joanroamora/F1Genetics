@@ -67,6 +67,13 @@
                 <option value="monaco">Monaco GP (Hard)</option>
             </select>
 
+            <label>Estado Inicial de los Agentes:</label>
+            <select name="brain_mode">
+                <option value="scratch">Empezar de Cero (Amnesia Total)</option>
+                <option value="local">Continuar Entrenamiento (Memoria Local)</option>
+                <option value="file">Load Master Brain (From static/brains/)</option>
+            </select>
+
             <label>Agent Population Count:</label>
             <input type="number" name="population" value="100" min="10" max="500">
 

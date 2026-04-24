@@ -126,16 +126,18 @@
     <canvas id="simulationCanvas" width="1000" height="700"></canvas>
 
     <div class="controls">
-        <button id="startBtn" class="btn-action btn-red">🚀 START ENGINES</button>
-        <button id="resetBtn" class="btn-action btn-gray">🗑️ RESET EVOLUTION</button>
-        <button id="nextGenBtn" class="btn-action btn-blue">⏭️ SKIP TO NEXT GEN</button>
-        <a href="/" class="btn-action btn-gray" style="min-width: 120px;">⚙️ SETUP</a>
+    <button id="startBtn" class="btn-action btn-red">🚀 START ENGINES</button>
+    <button id="nextGenBtn" class="btn-action btn-blue">⏭️ NEXT GEN</button>
+    <button id="exportBtn" class="btn-action btn-gray">💾 EXPORT BRAIN</button>
+    <button id="resetBtn" class="btn-action btn-gray">🗑️ PURGE</button>
+    <a href="/" class="btn-action btn-gray" style="min-width: 120px;">⚙️ SETUP</a>
     </div>
 
     <script>
         window.config = {
             trackName: "{{ track }}",
-            popSize: parseInt("{{ population }}")
+            popSize: parseInt("{{ population }}"),
+            brainMode: "{{ brain_mode }}"
         };
 
         const startBtn = document.getElementById('startBtn');
